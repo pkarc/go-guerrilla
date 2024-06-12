@@ -119,6 +119,13 @@ func NewAddress(str string) (*Address, error) {
 	return a, nil
 }
 
+// Attachment with filename, content type and data (as a io.Reader)
+type Attachment struct {
+	Filename    string
+	ContentType string
+	Data        io.Reader
+}
+
 // Envelope of Email represents a single SMTP message.
 type Envelope struct {
 	// Remote IP address
@@ -143,6 +150,8 @@ type Envelope struct {
 	Hashes []string
 	// additional delivery header that may be added
 	DeliveryHeader string
+	// Recipients
+	Attachments []Attachment
 	// Email(s) will be queued with this id
 	QueuedId string
 	// ESMTP: true if EHLO was used
