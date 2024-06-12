@@ -48,7 +48,8 @@ func Debugger() Decorator {
 					Log().Infof("Mail from: %s / to: %v", e.MailFrom.String(), e.RcptTo)
 					Log().Info("Headers are:", e.Header)
 					Log().Infof("Subject is: %s", e.Subject)
-					Log().Infof("Data is: %s", e.Data.String())
+					//Log().Infof("Data is: %s", e.Data.String())
+					Log().Infof("Mail attachments are: %v", e.Attachments)
 				}
 
 				if config.SleepSec > 0 {
