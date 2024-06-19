@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"crypto/tls"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"net"
@@ -235,6 +236,124 @@ func (c *client) parsePath(in []byte, p pathParser) (mail.Address, error) {
 		}
 	}
 	return address, err
+}
+
+type proxyHeader struct {
+	Sig        [12]uint8
+	Ver_cmd    uint8
+	Family     uint8
+	AddrLength uint16
+}
+
+type proxyAddressIPv4 struct {
+	SrcAddr  uint32
+	DestAddr uint32
+	SrcPort  uint16
+	DestPort uint16
+}
+
+type proxyAddressIPv6 struct {
+	SrcAddr  [16]uint8
+	DestAddr [16]uint8
+	SrcPort  uint16
+	DestPort uint16
+}
+
+const (
+	// ProxyProtocolVersion2 is the version of the proxy protocol
+	ProxyProtocolVersion2 = 0x02
+
+	ProxyProtocolCommandLocal = 0x00
+	ProxyProtocolCommandProxy = 0x01
+
+	ProxyProtocolFamilyTCPv4 = 0x11 //TCP over IPv4
+	ProxyProtocolFamilyTCPv6 = 0x21 //TCP over IPv6
+)
+
+var ppV2Signature = []byte{0x0D, 0x0A, 0x0D, 0x0A, 0x00, 0x0D, 0x0A, 0x51, 0x55, 0x49, 0x54, 0x0A}
+
+// Reads from the client until a \n terminator is encountered,
+// or until a timeout occurs.
+func (c *client) parseProxyProtocol() error {
+
+	hb := make([]byte, 16)
+
+	n, err := c.bufin.Read(hb)
+	if err != nil {
+		return err
+	}
+
+	c.log.Debugf("ProxyProtocol header: %x", hb)
+
+	if n >= 16 && bytes.Contains(hb, []byte(ppV2Signature)) {
+
+		proxyHeader := &proxyHeader{}
+		err = binary.Read(bytes.NewReader(hb), binary.BigEndian, proxyHeader)
+		if err != nil {
+			return err
+		}
+
+		switch proxyHeader.Ver_cmd & 0xF {
+		case ProxyProtocolCommandProxy:
+
+			ab := make([]byte, proxyHeader.AddrLength)
+
+			_, err := c.bufin.Read(ab)
+			if err != nil {
+				return err
+			}
+
+			c.log.Debugf("ProxyProtocol address: %x", ab)
+
+			switch proxyHeader.Family {
+			case ProxyProtocolFamilyTCPv4:
+				proxyAddressIPv4 := &proxyAddressIPv4{}
+
+				err = binary.Read(bytes.NewReader(ab), binary.BigEndian, proxyAddressIPv4)
+				if err != nil {
+					return err
+				}
+
+				ipv4 := make([]byte, 4)
+
+				// convert the address to a byte array
+				binary.BigEndian.PutUint32(ipv4, proxyAddressIPv4.SrcAddr)
+				// replace the remote address with the proxy address
+				c.RemoteIP = net.IP(ipv4).String()
+
+			case ProxyProtocolFamilyTCPv6:
+				proxyAddressIPv6 := &proxyAddressIPv6{}
+
+				err = binary.Read(bytes.NewReader(ab), binary.BigEndian, proxyAddressIPv6)
+				if err != nil {
+					return err
+				}
+
+				ipv6 := make([]byte, 16)
+
+				// convert the address to a byte array
+				copy(ipv6, proxyAddressIPv6.SrcAddr[:])
+				// replace the remote address with the proxy address
+				c.RemoteIP = net.IP(ipv6).String()
+
+			default:
+				return errors.New("wrong protocol version/command")
+			}
+
+			return nil
+
+		case ProxyProtocolCommandLocal:
+			// do nothing, keep local connection address for LOCAL
+			return nil
+		default:
+			return errors.New("wrong protocol version/command")
+		}
+	} else if n >= 8 && bytes.Contains(hb, []byte("PROXY ")) {
+		//TODO: parse proxy protocol v1
+		return nil
+	} else {
+		return errors.New("wrong protocol")
+	}
 }
 
 func (s *server) rcptTo() (address mail.Address, err error) {

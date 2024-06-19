@@ -367,8 +367,16 @@ func (s *server) isShuttingDown() bool {
 // Handles an entire client SMTP exchange
 func (s *server) handleClient(client *client) {
 	defer client.closeConn()
-	sc := s.configStore.Load().(ServerConfig)
+
+	// parse the proxy protocol header
+	err := client.parseProxyProtocol()
+	if err != nil {
+		s.log().WithError(err).Debug("Client proxy protocol error")
+	}
+
 	s.log().Infof("Handle client [%s], id: %d", client.RemoteIP, client.ID)
+
+	sc := s.configStore.Load().(ServerConfig)
 
 	// Initial greeting
 	greeting := fmt.Sprintf("220 %s SMTP Guerrilla(%s) #%d (%d) %s",
