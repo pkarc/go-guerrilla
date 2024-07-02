@@ -62,6 +62,8 @@ type ServerConfig struct {
 	XClientOn bool `json:"xclient_on,omitempty"`
 	// Proxied when using a loadbalancer such as HAProxy, set to true to enable
 	ProxyOn bool `json:"proxyon,omitempty"`
+	// ProxyProtocol when true, will parse the proxy protocol header
+	ProxyProtocol bool `json:"proxy_protocol"`
 }
 
 type ServerTLSConfig struct {
