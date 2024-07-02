@@ -60,6 +60,8 @@ type ServerConfig struct {
 	// XClientOn when using a proxy such as Nginx, XCLIENT command is used to pass the
 	// original client's IP address & client's HELO
 	XClientOn bool `json:"xclient_on,omitempty"`
+	// ProxyProtocol when true, will parse the proxy protocol header
+	ProxyProtocol bool `json:"proxy_protocol"`
 }
 
 type ServerTLSConfig struct {

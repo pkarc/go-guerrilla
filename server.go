@@ -366,15 +366,17 @@ func (s *server) isShuttingDown() bool {
 func (s *server) handleClient(client *client) {
 	defer client.closeConn()
 
-	// parse the proxy protocol header
-	err := client.parseProxyProtocol()
-	if err != nil {
-		s.log().WithError(err).Debug("Client proxy protocol error")
+	sc := s.configStore.Load().(ServerConfig)
+
+	if sc.ProxyProtocol {
+		// parse the proxy protocol header
+		err := client.parseProxyProtocol()
+		if err != nil {
+			s.log().WithError(err).Debug("Client proxy protocol error")
+		}
 	}
 
 	s.log().Infof("Handle client [%s], id: %d", client.RemoteIP, client.ID)
-
-	sc := s.configStore.Load().(ServerConfig)
 
 	// Initial greeting
 	greeting := fmt.Sprintf("220 %s SMTP Guerrilla(%s) #%d (%d) %s",

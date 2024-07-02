@@ -261,7 +261,7 @@ type proxyAddressIPv6 struct {
 
 const (
 	// ProxyProtocolVersion2 is the version of the proxy protocol
-	ProxyProtocolVersion2 = 0x02
+	ProxyProtocolVersion2 = 0x20
 
 	ProxyProtocolCommandLocal = 0x00
 	ProxyProtocolCommandProxy = 0x01
@@ -291,6 +291,10 @@ func (c *client) parseProxyProtocol() error {
 		err = binary.Read(bytes.NewReader(hb), binary.BigEndian, proxyHeader)
 		if err != nil {
 			return err
+		}
+
+		if proxyHeader.Ver_cmd&0xF0 != ProxyProtocolVersion2 {
+			return errors.New("wrong protocol version") // only version 2 is supported
 		}
 
 		switch proxyHeader.Ver_cmd & 0xF {
@@ -337,7 +341,7 @@ func (c *client) parseProxyProtocol() error {
 				c.RemoteIP = net.IP(ipv6).String()
 
 			default:
-				return errors.New("wrong protocol version/command")
+				return errors.New("protocol family not supported") // only TCPv4 and TCPv6 are supported
 			}
 
 			return nil
