@@ -131,6 +131,7 @@ func (s *server) configureTLS() error {
 			Certificates: []tls.Certificate{cert},
 			ClientAuth:   tls.VerifyClientCertIfGiven,
 			ServerName:   sConfig.Hostname,
+			MinVersion:   tls.VersionTLS10, // #nosec G402 -- we need to keep at least TLS1.0 for backward compatibility
 		}
 		if len(sConfig.TLS.Protocols) > 0 {
 			if min, ok := TLSProtocols[sConfig.TLS.Protocols[0]]; ok {
@@ -499,6 +500,7 @@ func (s *server) handleClient(client *client) {
 					}
 				}
 				client.sendResponse(r.SuccessMailCmd)
+
 			case cmdMAIL.match(cmd):
 				if client.isInTransaction() {
 					client.sendResponse(r.FailNestedMailCmd)

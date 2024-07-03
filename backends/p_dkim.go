@@ -18,17 +18,17 @@ func DKIM() Decorator {
 	return func(p Processor) Processor {
 		return ProcessWith(func(e *mail.Envelope, task SelectTask) (Result, error) {
 			if task == TaskSaveMail {
-
+				// DKIM header should be present
 				if dkimSignature := e.Header.Get(DKIMSignatureHeaderFieldName); dkimSignature == "" {
 					return NewResult("556 5.7.20 No DKIM signature."), DKIMError
 				}
-
+				// verify the signature
 				verifications, err := dkim.Verify(e.NewReader())
 				if err != nil {
 					Log().Errorf("DKIM error=%s", err)
 					return NewResult("556 5.7.20 DKIM verification error."), DKIMError
 				}
-
+				// check the verifications for each domain
 				for _, v := range verifications {
 					if v.Err == nil {
 						Log().Infoln("DKIM Valid signature for:", v.Domain)
@@ -37,7 +37,6 @@ func DKIM() Decorator {
 						return NewResult("556 5.7.0 Unauthorized sender. Email blocked due to policy reasons."), DKIMError
 					}
 				}
-
 				// next processor
 				return p.Process(e, task)
 			} else {

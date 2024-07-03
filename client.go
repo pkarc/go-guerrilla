@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net"
 	"net/textproto"
+	"strings"
 	"sync"
 	"time"
 
@@ -260,103 +261,104 @@ type proxyAddressIPv6 struct {
 }
 
 const (
-	// ProxyProtocolVersion2 is the version of the proxy protocol
-	ProxyProtocolVersion2 = 0x20
-
-	ProxyProtocolCommandLocal = 0x00
-	ProxyProtocolCommandProxy = 0x01
-
-	ProxyProtocolFamilyTCPv4 = 0x11 //TCP over IPv4
-	ProxyProtocolFamilyTCPv6 = 0x21 //TCP over IPv6
+	ProxyProtocolVersion2     = 0x20 // version of the proxy protocol
+	ProxyProtocolCommandLocal = 0x00 // LOCAL command
+	ProxyProtocolCommandProxy = 0x01 // PROXY command
+	ProxyProtocolFamilyTCPv4  = 0x11 //TCP over IPv4
+	ProxyProtocolFamilyTCPv6  = 0x21 //TCP over IPv6
 )
 
+// The signature of the proxy protocol header
 var ppV2Signature = []byte{0x0D, 0x0A, 0x0D, 0x0A, 0x00, 0x0D, 0x0A, 0x51, 0x55, 0x49, 0x54, 0x0A}
 
-// Reads from the client until a \n terminator is encountered,
-// or until a timeout occurs.
+// There is a RFC for Proxy Protocol defined by HAProxy
+// https://www.haproxy.org/download/3.1/doc/proxy-protocol.txt
 func (c *client) parseProxyProtocol() error {
-
 	hb := make([]byte, 16)
-
 	n, err := c.bufin.Read(hb)
 	if err != nil {
 		return err
 	}
-
-	c.log.Debugf("ProxyProtocol header: %x", hb)
-
-	if n >= 16 && bytes.Contains(hb, []byte(ppV2Signature)) {
-
+	// check the signature for the proxy protocol header version 2
+	if n == 16 && bytes.Contains(hb, []byte(ppV2Signature)) {
+		c.log.Debugf("ProxyProtocol v2 header: %X", hb)
+		// parse the proxy protocol header
 		proxyHeader := &proxyHeader{}
 		err = binary.Read(bytes.NewReader(hb), binary.BigEndian, proxyHeader)
 		if err != nil {
 			return err
 		}
-
+		// check the proxy protocol version
 		if proxyHeader.Ver_cmd&0xF0 != ProxyProtocolVersion2 {
-			return errors.New("wrong protocol version") // only version 2 is supported
+			return errors.New("wrong protocol version") // only version 2 is supported by now
 		}
-
+		// check the proxy protocol command
 		switch proxyHeader.Ver_cmd & 0xF {
+		// PROXY command
 		case ProxyProtocolCommandProxy:
-
+			// read the address
 			ab := make([]byte, proxyHeader.AddrLength)
-
 			_, err := c.bufin.Read(ab)
 			if err != nil {
 				return err
 			}
-
-			c.log.Debugf("ProxyProtocol address: %x", ab)
-
+			// parse the address family and transport protocol
 			switch proxyHeader.Family {
+			// TCP over IPv4
 			case ProxyProtocolFamilyTCPv4:
 				proxyAddressIPv4 := &proxyAddressIPv4{}
-
 				err = binary.Read(bytes.NewReader(ab), binary.BigEndian, proxyAddressIPv4)
 				if err != nil {
 					return err
 				}
-
 				ipv4 := make([]byte, 4)
-
 				// convert the address to a byte array
 				binary.BigEndian.PutUint32(ipv4, proxyAddressIPv4.SrcAddr)
 				// replace the remote address with the proxy address
 				c.RemoteIP = net.IP(ipv4).String()
-
+			// TCP over IPv6
 			case ProxyProtocolFamilyTCPv6:
 				proxyAddressIPv6 := &proxyAddressIPv6{}
-
 				err = binary.Read(bytes.NewReader(ab), binary.BigEndian, proxyAddressIPv6)
 				if err != nil {
 					return err
 				}
-
 				ipv6 := make([]byte, 16)
-
 				// convert the address to a byte array
 				copy(ipv6, proxyAddressIPv6.SrcAddr[:])
 				// replace the remote address with the proxy address
 				c.RemoteIP = net.IP(ipv6).String()
-
+			// unknown protocol family
 			default:
 				return errors.New("protocol family not supported") // only TCPv4 and TCPv6 are supported
 			}
-
 			return nil
-
+		// LOCAL command
 		case ProxyProtocolCommandLocal:
 			// do nothing, keep local connection address for LOCAL
 			return nil
+		// unknown command
 		default:
 			return errors.New("wrong protocol version/command")
 		}
-	} else if n >= 8 && bytes.Contains(hb, []byte("PROXY ")) {
-		//TODO: parse proxy protocol v1
+	} else if bytes.Contains(hb, []byte("PROXY ")) { // check for PROXY v1 header
+		input, err := c.bufin.ReadString('\n')
+		if err != nil {
+			return err
+		}
+		input = strings.TrimRight(input, "\r\n")
+		ab := append(hb, []byte(input)...)
+		c.log.Debugf("ProxyProtocol v1 header: %s", ab)
+		if toks := bytes.Split(ab[6:], []byte{' '}); len(toks) == 5 {
+			c.log.Debugf("PROXY command. Proto: [%s] Source IP: [%s] Dest IP: [%s] Source Port: [%s] Dest Port: [%s]", toks[0], toks[1], toks[2], toks[3], toks[4])
+			c.RemoteIP = net.ParseIP(string(toks[1])).String()
+			c.log.Debugf("client.RemoteIP: [%s]", c.RemoteIP)
+		} else {
+			c.log.Error("PROXY parse error", "["+string(hb[6:])+"]")
+		}
 		return nil
 	} else {
-		return errors.New("wrong protocol")
+		return errors.New("wrong proxy protocol")
 	}
 }
 

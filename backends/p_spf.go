@@ -17,15 +17,14 @@ func SPF() Decorator {
 	return func(p Processor) Processor {
 		return ProcessWith(func(e *mail.Envelope, task SelectTask) (Result, error) {
 			if task == TaskSaveMail {
-
+				// check the SPF validity of the sender domain
 				res, err := spf.CheckHostWithSender(net.ParseIP(e.RemoteIP), e.MailFrom.Host, e.MailFrom.String())
 				Log().Infoln("SPF debug", err)
-
+				// if the SPF check fails, return an error
 				if res == spf.Fail {
 					Log().Errorf("SPF result=%s", res)
 					return NewResult("556 5.7.0 Unauthorized sender. Email blocked due to policy reasons."), SpfError
 				}
-
 				// next processor
 				return p.Process(e, task)
 			} else {
