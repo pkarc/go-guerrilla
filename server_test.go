@@ -911,7 +911,7 @@ func TestProxy(t *testing.T) {
 	var logOpenError error
 	defer cleanTestArtifacts(t)
 	sc := getMockServerConfig()
-	sc.ProxyOn = true
+	sc.ProxyProtocol = true
 	mainlog, logOpenError = log.GetLogger(sc.LogFile, "debug")
 	if logOpenError != nil {
 		mainlog.WithError(logOpenError).Errorf("Failed creating a logger for mock conn [%s]", sc.ListenInterface)
@@ -929,7 +929,7 @@ func TestProxy(t *testing.T) {
 	r := textproto.NewReader(bufio.NewReader(conn.Client))
 	line, _ := r.ReadLine()
 
-	// PROXY command is sent before anything else
+	// PROXY protocol header is sent before anything else
 	w := textproto.NewWriter(bufio.NewWriter(conn.Client))
 	if err := w.PrintfLine("PROXY TCP4 1.2.3.4 127.0.0.1 12345 25"); err != nil {
 		t.Error(err)
@@ -938,11 +938,9 @@ func TestProxy(t *testing.T) {
 	// TODO: For some reason, client.RemoteIP contains "tcp" - whereever this
 	//       may come from. Therefore for now we're skipping the test if the
 	//       parsing was successfull.
-	/*
-		if client.RemoteIP != "1.2.3.4" {
-			t.Error("client.RemoteIP should be 1.2.3.4, but got:", client.RemoteIP)
-		}
-	*/
+	if client.RemoteIP != "1.2.3.4" {
+		t.Error("client.RemoteIP should be 1.2.3.4, but got:", client.RemoteIP)
+	}
 	// try malformed input
 	if err := w.PrintfLine("PROXY c"); err != nil {
 		t.Error(err)

@@ -82,7 +82,6 @@ var (
 	cmdQUIT     command = []byte("QUIT")
 	cmdDATA     command = []byte("DATA")
 	cmdSTARTTLS command = []byte("STARTTLS")
-	cmdPROXY    command = []byte("PROXY")
 )
 
 func (c command) match(in []byte) bool {
@@ -235,8 +234,7 @@ func (s *server) setAllowedHosts(allowedHosts []string) {
 
 // Begin accepting SMTP clients. Will block unless there is an error or server.Shutdown() is called
 func (s *server) Start(startWG *sync.WaitGroup) error {
-	var clientID uint64
-	clientID = 0
+	var clientID uint64 = 0
 
 	listener, err := net.Listen("tcp", s.listenInterface)
 	s.listener = listener
@@ -501,20 +499,6 @@ func (s *server) handleClient(client *client) {
 					}
 				}
 				client.sendResponse(r.SuccessMailCmd)
-
-			case sc.ProxyOn && cmdPROXY.match(cmd):
-				if toks := bytes.Split(input[6:], []byte{' '}); len(toks) == 5 {
-					s.log().Debugf("PROXY command. Proto: [%s] Source IP: [%s] Dest IP: [%s] Source Port: [%s] Dest Port: [%s]", toks[0], toks[1], toks[2], toks[3], toks[4])
-					client.RemoteIP = string(toks[1])
-					s.log().Debugf("client.RemoteIP: [%s]", client.RemoteIP)
-					// There is RfC or anything about the PROXY command,
-					// so it is unclear, if a response is required.
-					//client.sendResponse(r.SuccessMailCmd)
-				} else {
-					s.log().Error("PROXY parse error", "["+string(input[6:])+"]")
-					client.sendResponse(r.FailSyntaxError)
-				}
-
 			case cmdMAIL.match(cmd):
 				if client.isInTransaction() {
 					client.sendResponse(r.FailNestedMailCmd)
