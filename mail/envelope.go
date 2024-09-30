@@ -150,7 +150,7 @@ type Envelope struct {
 	Hashes []string
 	// additional delivery header that may be added
 	DeliveryHeader string
-	// Recipients
+	// Attachments holds the attachments of the email
 	Attachments []Attachment
 	// Email(s) will be queued with this id
 	QueuedId string
