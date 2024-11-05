@@ -5,7 +5,6 @@ import (
 	"compress/zlib"
 	"crypto/rand"
 	"database/sql"
-	"encoding/binary"
 	"fmt"
 	"io"
 	"runtime/debug"
@@ -406,7 +405,8 @@ func GuerrillaDbRedis() Decorator {
 
 	return func(p Processor) Processor {
 		return ProcessWith(func(e *mail.Envelope, task SelectTask) (Result, error) {
-			if task == TaskSaveMail {
+			switch task {
+			case TaskSaveMail, TaskTest:
 				Log().Debug("Got mail from chan,", e.RemoteIP)
 				to = trimToLimit(strings.TrimSpace(e.RcptTo[0].User)+"@"+g.config.PrimaryHost, 255)
 				e.Helo = trimToLimit(e.Helo, 255)
@@ -471,18 +471,10 @@ func GuerrillaDbRedis() Decorator {
 					trimToLimit(e.MailFrom.String(), 255),
 					e.TLS)
 				// give the values to a random query batcher
-				var index int
-				err = binary.Read(rand.Reader, binary.LittleEndian, &index)
-				if err != nil {
-					panic(err)
-				}
-				index %= len(feeders)
-				feeders[index] <- vals
-				return p.Process(e, task)
-
-			} else {
-				return p.Process(e, task)
+				feeders[rand.Intn(len(feeders))] <- vals
 			}
+			// next processor
+			return p.Process(e, task)
 		})
 	}
 }
