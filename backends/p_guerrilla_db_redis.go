@@ -3,10 +3,10 @@ package backends
 import (
 	"bytes"
 	"compress/zlib"
-	"crypto/rand"
 	"database/sql"
 	"fmt"
 	"io"
+	"math/rand"
 	"runtime/debug"
 	"strings"
 	"sync"
