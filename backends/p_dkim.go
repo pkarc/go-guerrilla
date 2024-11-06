@@ -27,7 +27,7 @@ func DKIM() Decorator {
 				}
 				verifications, err := dkim.Verify(e.NewReader())
 				if err != nil {
-					Log().Errorf("DKIM error=%s", err)
+					Log().Infoln("DKIM error=%s", err)
 					return NewResult("556 5.7.20 DKIM verification error."), DKIMError
 				}
 				for _, v := range verifications {
@@ -42,6 +42,7 @@ func DKIM() Decorator {
 				if dkimSignature := e.Header.Get(DKIMSignatureHeaderFieldName); dkimSignature == "" {
 					return NewResult("556 5.7.20 No DKIM signature."), DKIMError
 				}
+
 				verifyOptions := dkim.VerifyOptions{
 					LookupTXT: func(domain string) ([]string, error) {
 						Log().Debugf("DKIM TXT lookup for %s", domain)
@@ -53,7 +54,7 @@ func DKIM() Decorator {
 				}
 				verifications, err := dkim.VerifyWithOptions(e.NewReader(), &verifyOptions)
 				if err != nil {
-					Log().Errorf("DKIM error=%s", err)
+					Log().Infoln("DKIM error=%s", err)
 					return NewResult("556 5.7.20 DKIM verification error."), DKIMError
 				}
 				for _, v := range verifications {
