@@ -572,10 +572,10 @@ func (s *server) handleClient(client *client) {
 				if client.errors >= MaxUnrecognizedCommands {
 					client.sendResponse(r.FailMaxUnrecognizedCmd)
 					client.kill()
-					s.log().Errorln("Client [%s] sent too many unrecognized commands: %s", client.RemoteIP, cmd)
+					s.log().Errorf("Client [%s] sent too many unrecognized commands: %s", client.RemoteIP, cmd)
 				} else {
 					client.sendResponse(r.FailUnrecognizedCmd)
-					s.log().Errorln("Client [%s] sent an unrecognized command: %s", client.RemoteIP, cmd)
+					s.log().Errorf("Client [%s] sent an unrecognized command: %s", client.RemoteIP, cmd)
 				}
 			}
 
