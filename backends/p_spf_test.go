@@ -53,8 +53,6 @@ func TestSpf(t *testing.T) {
 		return
 	}
 
-	return
-
 	if err := l.Close(); err != nil {
 		t.Error(err)
 		return
