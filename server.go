@@ -447,6 +447,7 @@ func (s *server) handleClient(client *client) {
 				cmdLen = CommandVerbMaxLength
 			}
 			cmd := bytes.ToUpper(input[:cmdLen])
+
 			switch {
 			case cmdHELO.match(cmd):
 				if h, err := client.parser.Helo(input[4:]); err == nil {
@@ -584,6 +585,12 @@ func (s *server) handleClient(client *client) {
 						"cmd":    string(cmd),
 						"client": client.ID,
 					}).Warn("Client sent an unrecognized command")
+
+					//if the command is an http request, we should kill the connection
+					if strings.HasPrefix(string(cmd), "GET ") || strings.HasPrefix(string(cmd), "POST ") {
+						client.kill()
+					}
+
 				}
 			}
 
