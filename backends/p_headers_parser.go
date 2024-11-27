@@ -28,6 +28,7 @@ func HeadersParser() Decorator {
 			case TaskSaveMail, TaskTest:
 				if err := e.ParseHeaders(); err != nil {
 					Log().WithError(err).Error("parse headers error")
+					return NewResult("554 5.7.1 Header parse error."), err
 				}
 			}
 			return p.Process(e, task)
