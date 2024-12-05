@@ -162,9 +162,10 @@ type Envelope struct {
 
 func NewEnvelope(remoteAddr string, clientID uint64) *Envelope {
 	return &Envelope{
-		RemoteIP: remoteAddr,
-		Values:   make(map[string]interface{}),
-		QueuedId: queuedID(clientID),
+		RemoteIP:    remoteAddr,
+		Values:      make(map[string]interface{}),
+		QueuedId:    queuedID(clientID),
+		Attachments: make([]Attachment, 0),
 	}
 }
 
@@ -250,6 +251,7 @@ func (e *Envelope) ResetTransaction() {
 	e.Hashes = make([]string, 0)
 	e.DeliveryHeader = ""
 	e.Values = make(map[string]interface{})
+	e.Attachments = make([]Attachment, 0)
 }
 
 // Reseed is called when used with a new connection, once it's accepted
