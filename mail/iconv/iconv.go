@@ -9,7 +9,7 @@ import (
 	"io"
 
 	"github.com/phires/go-guerrilla/mail"
-	ico "gopkg.in/iconv.v1"
+	ico "github.com/qiniu/iconv"
 )
 
 func init() {

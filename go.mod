@@ -8,11 +8,11 @@ require (
 	github.com/emersion/go-msgauth v0.6.8
 	github.com/go-sql-driver/mysql v1.8.1
 	github.com/gomodule/redigo v1.9.2
+	github.com/qiniu/iconv v1.2.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.8.0
 	golang.org/x/crypto v0.24.0
 	golang.org/x/net v0.25.0
-	gopkg.in/iconv.v1 v1.1.1
 )
 
 require (
