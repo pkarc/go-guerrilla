@@ -77,8 +77,24 @@ func parseAttachments(e *mail.Envelope) (attachments []mail.Attachment, err erro
 
 }
 
+func getPartDisposition(part *multipart.Part) string {
+	disposition, _, err := mime.ParseMediaType(part.Header.Get("Content-Disposition"))
+	if err != nil {
+		return ""
+	}
+	return disposition
+}
+
 func isAttachment(part *multipart.Part) bool {
-	return part.FileName() != ""
+	//is filename present?
+	if part.FileName() != "" {
+		return true
+	}
+	//is disposition attachment?
+	if getPartDisposition(part) == "attachment" {
+		return true
+	}
+	return false
 }
 
 func decodeAttachment(part *multipart.Part) (at mail.Attachment, err error) {
